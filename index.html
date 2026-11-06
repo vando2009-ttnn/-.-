@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đấu trường lịch sử Tây Ninh</title>
+<style>
+:root{--bg:#091326;--panel:#12213d;--panel2:#192d50;--gold:#ffd166;--cyan:#5eead4;--white:#f5f7ff;--muted:#a9b8d2;--red:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:radial-gradient(circle at top,#1b3761 0,#091326 55%);color:var(--white);min-height:100vh}
+header{padding:22px 16px;text-align:center;border-bottom:1px solid #ffffff20}header h1{margin:0;color:var(--gold);font-size:clamp(24px,4vw,38px)}header p{color:var(--muted);margin:8px 0 0}
+main{max-width:1050px;margin:24px auto;padding:0 16px}.panel{background:#12213deb;border:1px solid #ffffff20;border-radius:18px;padding:22px;box-shadow:0 16px 45px #0005;margin-bottom:18px}
+h2{margin:0 0 16px;color:var(--cyan)}label{display:block;margin:12px 0 6px;color:var(--muted)}input,select{width:100%;padding:13px;border-radius:10px;border:1px solid #526785;background:#0b1830;color:white;font-size:16px}
+button{border:0;border-radius:11px;padding:12px 18px;font-weight:bold;font-size:15px;cursor:pointer;background:var(--gold);color:#17223a;margin:6px 6px 0 0}button.secondary{background:#2b4268;color:white}button.danger{background:#8e3444;color:white}button:disabled{opacity:.45;cursor:not-allowed}
+.hidden{display:none!important}.muted{color:var(--muted)}.center{text-align:center}.big{font-size:clamp(22px,4vw,34px);font-weight:bold}.pill{display:inline-block;background:#243b61;padding:7px 12px;border-radius:30px;margin:3px;color:var(--cyan)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.stat{background:#0b1830;padding:14px;border-radius:12px}.stat b{display:block;font-size:25px;color:var(--gold);margin-top:5px}
+.progress{height:9px;background:#293b59;border-radius:10px;overflow:hidden;margin:12px 0}.progress>div{height:100%;background:var(--cyan);width:0%;transition:width .2s}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.answer{background:#20395f;color:white;text-align:left;min-height:58px;border:2px solid transparent}.answer:hover{border-color:var(--gold)}.answer.selected{background:#14675e;border-color:var(--cyan)}
+.timer{font-size:40px;color:var(--gold);font-weight:bold}.question{font-size:clamp(19px,3vw,26px);line-height:1.35;margin:18px 0}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #ffffff20}th{color:var(--gold)}.scroll{overflow:auto}
+@media(max-width:600px){.answers{grid-template-columns:1fr}.panel{padding:16px}}
+</style>
+</head>
+<body>
+<header><h1>🏆 ĐẤU TRƯỜNG LỊCH SỬ TÂY NINH</h1><p>4 vòng thi · 10 câu mỗi vòng · 15 giây mỗi câu</p></header>
+<main>
+<section id="login" class="panel">
+<h2>Đăng nhập chương trình</h2>
+<p class="muted">Chọn vai trò để tham gia hoặc theo dõi cuộc thi.</p>
+<label>Họ và tên / Tên đăng nhập</label><input id="username" placeholder="Nhập tên của bạn">
+<label>Mật khẩu admin (chỉ dành cho quản trị)</label><input id="password" type="password" placeholder="Để trống nếu là thí sinh">
+<button onclick="login()">Vào chương trình</button>
+<p class="muted">Demo: tên đăng nhập bất kỳ để vào vai thí sinh. Admin dùng tên <b>admin</b>, mật khẩu <b>tn2026</b>.</p>
+</section>
+
+<section id="waiting" class="panel hidden center">
+<h2>⏳ KHU VỰC CHỜ THÍ SINH</h2><p class="big" id="welcome"></p>
+<p class="muted">Bạn đã vào phòng thi. Hãy chờ quản trị viên bắt đầu vòng thi.</p>
+<div class="pill">Trạng thái: Đang chờ</div><p id="waitInfo" class="muted">Chưa có vòng thi đang diễn ra.</p>
+<button class="secondary" onclick="refreshState()">Cập nhật trạng thái</button>
+</section>
+
+<section id="contest" class="panel hidden">
+<div class="row"><span class="pill" id="roundLabel">Vòng 1</span><span class="pill" id="qLabel">Câu 1/10</span></div>
+<div class="progress"><div id="bar"></div></div>
+<div class="center"><div class="timer" id="timer">15</div><small class="muted">GIÂY CÒN LẠI</small></div>
+<div class="question" id="question"></div><div class="answers" id="answers"></div>
+<p id="feedback" class="muted"></p>
+</section>
+
+<section id="result" class="panel hidden center">
+<h2>🎉 KẾT QUẢ</h2><div class="big" id="score"></div><p id="resultText" class="muted"></p>
+<button class="secondary" onclick="showWaiting()">Về khu vực chờ</button>
+</section>
+
+<section id="admin" class="hidden">
+<div class="panel">
+<h2>🛡️ BẢNG ĐIỀU KHIỂN ADMIN</h2>
+<p class="muted">Quản trị viên theo dõi thí sinh, điều khiển vòng thi và xem kết quả.</p>
+<div class="grid">
+<div class="stat">Thí sinh đã đăng nhập<b id="playersCount">0</b></div>
+<div class="stat">Vòng hiện tại<b id="adminRound">Chưa bắt đầu</b></div>
+<div class="stat">Câu hỏi<b id="adminQuestion">—</b></div>
+</div>
+<button onclick="startRound()">Bắt đầu / Tiếp tục vòng</button>
+<button class="secondary" onclick="nextRound()">Chuyển vòng tiếp theo</button>
+<button class="danger" onclick="resetGame()">Đặt lại cuộc thi</button>
+</div>
+<div class="panel"><h2>Danh sách thí sinh & điểm số</h2><div class="scroll"><table><thead><tr><th>Thí sinh</th><th>Trạng thái</th><th>Điểm</th><th>Đã trả lời</th></tr></thead><tbody id="playerRows"></tbody></table></div></div>
+<div class="panel"><h2>Quan sát câu hỏi hiện tại</h2><p id="adminQuestionText" class="big">Chưa bắt đầu</p><p class="muted" id="adminAnswerInfo">Đáp án đúng được ẩn trong lúc thi.</p></div>
+</section>
+</main>
+<script>
+const rounds = [
+[
+["Tây Ninh được tái lập tỉnh vào năm nào?","1989","1976","1991","2000",0],
+["Núi Bà Đen thuộc tỉnh nào?","Bình Dương","Tây Ninh","Đồng Nai","Long An",1],
+["Di tích Căn cứ Trung ương Cục miền Nam gắn với địa danh nào?","Tân Biên","Gò Dầu","Trảng Bàng","Bến Cầu",0],
+["Tòa Thánh Cao Đài Tây Ninh nằm ở thành phố nào?","Hòa Thành","Tây Ninh","Trảng Bàng","Tân Châu",1],
+["Sông Vàm Cỏ Đông chảy qua khu vực nào?","Tây Ninh","Lâm Đồng","Bình Phước","Bà Rịa",0],
+["Tây Ninh tiếp giáp quốc gia nào?","Thái Lan","Lào","Campuchia","Trung Quốc",2],
+["Khu di tích lịch sử cách mạng nổi tiếng ở Tân Biên là?","Dầu Tiếng","Căn cứ Trung ương Cục miền Nam","Địa đạo Củ Chi","Nhà tù Côn Đảo",1],
+["Núi Bà Đen còn được biết đến với tên gọi nào?","Nóc nhà Nam Bộ","Nóc nhà Tây Nguyên","Nóc nhà Đông Bắc","Nóc nhà miền Trung",0],
+["Lễ hội truyền thống lớn gắn với Núi Bà Đen là?","Lễ hội vía Bà","Lễ hội đền Hùng","Lễ hội Lim","Lễ hội Chùa Hương",0],
+["Tây Ninh thuộc vùng địa lý nào của Việt Nam?","Đông Nam Bộ","Tây Bắc Bộ","Đồng bằng sông Hồng","Nam Trung Bộ",0]
+],
+[
+["Phong trào đấu tranh chống thực dân Pháp ở Nam Bộ bùng nổ mạnh sau sự kiện nào năm 1945?","Nam Bộ kháng chiến","Cách mạng tháng Tám 1930","Hiệp định Paris","Tổng tiến công 1975",0],
+["Ngày Nam Bộ kháng chiến là ngày nào?","2/9/1945","23/9/1945","19/8/1945","30/4/1975",1],
+["Căn cứ Trung ương Cục miền Nam từng là cơ quan lãnh đạo cách mạng ở đâu?","Miền Nam","Miền Bắc","Tây Nguyên","Miền Trung",0],
+["Trong kháng chiến chống Mỹ, Tây Ninh có vị trí chiến lược vì?","Là cửa ngõ nối với Campuchia","Có cảng biển lớn","Nằm sát Hà Nội","Có nhiều đảo",0],
+["Chiến khu Dương Minh Châu gắn với cuộc kháng chiến nào?","Chống Pháp và chống Mỹ","Chống Nguyên","Chống Minh","Chống Thanh",0],
+["Tây Ninh nằm ở phía nào của Thành phố Hồ Chí Minh?","Tây Bắc","Đông Nam","Đông Bắc","Tây Nam",0],
+["Tên gọi 'Trung ương Cục miền Nam' gắn với tổ chức nào?","Cơ quan lãnh đạo cách mạng miền Nam","Một đơn vị hành chính","Một trường học","Một thương cảng",0],
+["Địa danh Tân Biên gắn nhiều với di tích lịch sử nào?","Căn cứ Trung ương Cục","Dinh Độc Lập","Bến Nhà Rồng","Thành cổ Quảng Trị",0],
+["Sự kiện 30/4/1975 đánh dấu điều gì?","Kết thúc chiến tranh, thống nhất đất nước","Bắt đầu kháng chiến chống Pháp","Thành lập ASEAN","Đổi tên Sài Gòn",0],
+["Tây Ninh có đường biên giới với nước nào?","Campuchia","Lào","Thái Lan","Myanmar",0]
+],
+[
+["Tòa Thánh Tây Ninh là công trình tiêu biểu của tôn giáo nào?","Cao Đài","Phật giáo","Thiên Chúa giáo","Hồi giáo",0],
+["Núi Bà Đen thuộc địa phận huyện/thành phố nào trước đây?","Thành phố Tây Ninh","Tân Biên","Dương Minh Châu","Gò Dầu",0],
+["Hồ Dầu Tiếng có vai trò nổi bật nào?","Thủy lợi và cung cấp nước","Cảng hàng không","Khai thác dầu khí","Nuôi thủy sản biển",0],
+["Đặc sản bánh tráng phơi sương gắn với địa danh nào?","Trảng Bàng","Tân Châu","Tân Biên","Bến Cầu",0],
+["Món ăn nổi tiếng của Tây Ninh thường dùng muối ớt là?","Bánh tráng","Phở cuốn","Bún chả","Cao lầu",0],
+["Tây Ninh thuộc khu vực khí hậu nào?","Nhiệt đới gió mùa","Ôn đới hải dương","Hàn đới","Địa Trung Hải",0],
+["Lễ vía Bà Đen thường thu hút người dân đến hoạt động gì?","Hành hương, lễ hội","Đua thuyền biển","Trượt tuyết","Thả đèn trời quốc tế",0],
+["Một sản phẩm đặc trưng nổi tiếng của Tây Ninh là?","Muối tôm","Nước mắm Phú Quốc","Chè Thái Nguyên","Cốm làng Vòng",0],
+["Hồ Dầu Tiếng nằm trên địa bàn các tỉnh nào, trong đó có?","Tây Ninh","Nghệ An","Cao Bằng","Khánh Hòa",0],
+["Cảnh quan nổi bật của Núi Bà Đen là?","Núi cao giữa vùng đồng bằng","Vịnh biển","Sa mạc cát","Rừng ngập mặn",0]
+],
+[
+["Tỉnh Tây Ninh được tái lập năm 1989 sau khi tách khỏi tỉnh nào?","Tỉnh Tây Ninh trước đây (Tây Ninh hợp nhất với Bình Long)","Sông Bé","Hậu Giang","Thuận Hải",1],
+["Tên tỉnh Sông Bé hình thành sau năm 1976 từ sự hợp nhất các tỉnh nào?","Bình Dương và Bình Phước","Tây Ninh và Long An","Đồng Nai và Bà Rịa","Tiền Giang và Bến Tre",0],
+["Tây Ninh có vai trò gì trong tuyến biên giới phía Nam?","Địa bàn kết nối giao thương Việt Nam–Campuchia","Cửa ngõ ra biển Đông","Trung tâm vùng núi phía Bắc","Biên giới Việt–Lào",0],
+["Di tích lịch sử quốc gia đặc biệt ở Tân Biên là?","Căn cứ Trung ương Cục miền Nam","Thành nhà Hồ","Hoàng thành Thăng Long","Địa đạo Vịnh Mốc",0],
+["Núi Bà Đen là biểu tượng du lịch của vùng nào?","Tây Ninh","Tây Bắc","Đồng bằng Bắc Bộ","Tây Nguyên",0],
+["Tây Ninh nổi tiếng với loại hình tôn giáo bản địa nào?","Đạo Cao Đài","Đạo Sikh","Thần đạo","Do Thái giáo",0],
+["Trong lịch sử kháng chiến, địa hình rừng ở Tây Ninh có ý nghĩa gì?","Che chở, hỗ trợ hoạt động căn cứ cách mạng","Tạo cảng nước sâu","Phát triển băng tuyết","Làm tuyến đường sắt xuyên biển",0],
+["Trung ương Cục miền Nam có vai trò chính là gì?","Lãnh đạo cách mạng miền Nam","Quản lý hoạt động hàng hải","Điều hành thương mại quốc tế","Tổ chức thi cử",0],
+["Tây Ninh là một phần của vùng kinh tế nào?","Đông Nam Bộ","Đồng bằng sông Cửu Long","Trung du miền núi Bắc Bộ","Bắc Trung Bộ",0],
+["Giữ gìn di tích lịch sử Tây Ninh góp phần gì?","Giáo dục truyền thống và bảo tồn di sản","Thay thế sách giáo khoa","Xóa bỏ ký ức địa phương","Chỉ phục vụ xây dựng",0]
+]
+];
+// Câu hỏi được thiết kế cho hoạt động ôn tập; giáo viên nên rà soát mốc lịch sử trước khi tổ chức chính thức.
+const $=id=>document.getElementById(id);
+let role="",name="",state=load(),timer=null,remaining=15,answered=false;
+function load(){try{return JSON.parse(localStorage.getItem("tn_game_state"))||{round:-1,q:0,active:false,players:{}}}catch(e){return {round:-1,q:0,active:false,players:{}}}}
+function save(){localStorage.setItem("tn_game_state",JSON.stringify(state));renderAdmin()}
+function login(){name=$("username").value.trim();if(!name){alert("Vui lòng nhập tên.");return}
+if(name.toLowerCase()==="admin"&&$("password").value==="tn2026"){role="admin";$("login").classList.add("hidden");$("admin").classList.remove("hidden");renderAdmin();setInterval(renderAdmin,1200)}
+else{role="player";if(!state.players[name])state.players[name]={score:0,answered:0,status:"Đang chờ"};save();$("login").classList.add("hidden");showWaiting();setInterval(refreshState,1000)}}
+function hideAll(){["login","waiting","contest","result","admin"].forEach(x=>$(x).classList.add("hidden"))}
+function showWaiting(){clearInterval(timer);hideAll();$("waiting").classList.remove("hidden");$("welcome").textContent="Xin chào, "+name+"!";refreshState()}
+function refreshState(){state=load();if(role==="player"){if(state.active&&state.round>=0&&state.round<4){if(!$("contest").classList.contains("hidden"))return;showQuestion()}else{$("waitInfo").textContent=state.round>=4?"Cuộc thi đã kết thúc. Hãy xem thông báo từ ban tổ chức.":"Vòng thi sẽ bắt đầu khi admin phát lệnh.";}}}
+function startRound(){if(state.round<0)state.round=0;if(state.round>3)return;state.active=true;state.q=Math.min(state.q,9);save();renderAdmin()}
+function nextRound(){if(state.round<0){state.round=0}else if(state.round<3){state.round++;state.q=0}else{state.round=4;state.active=false}save();renderAdmin()}
+function resetGame(){if(!confirm("Xóa điểm và bắt đầu lại cuộc thi?"))return;state={round:-1,q:0,active:false,players:{}};save()}
+function renderAdmin(){if(role!=="admin")return;state=load();$("playersCount").textContent=Object.keys(state.players).length;$("adminRound").textContent=state.round<0?"Chưa bắt đầu":state.round>=4?"Đã kết thúc":"Vòng "+(state.round+1);$("adminQuestion").textContent=state.round>=0&&state.round<4?(state.q+1)+"/10":"—";
+$("playerRows").innerHTML=Object.entries(state.players).map(([n,p])=>`<tr><td>${esc(n)}</td><td>${esc(p.status||"Đang chờ")}</td><td>${p.score}</td><td>${p.answered}</td></tr>`).join("")||'<tr><td colspan="4">Chưa có thí sinh</td></tr>';
+if(state.round>=0&&state.round<4){$("adminQuestionText").textContent=rounds[state.round][state.q][0];$("adminAnswerInfo").textContent=state.active?"Thí sinh đang làm bài. Đáp án đúng được ẩn.":"Đang tạm dừng."}else $("adminQuestionText").textContent=state.round>=4?"Cuộc thi đã kết thúc":"Chưa bắt đầu"}
+function showQuestion(){state=load();if(!state.active||state.round<0||state.round>=4){showWaiting();return}hideAll();$("contest").classList.remove("hidden");answered=false;remaining=15;let item=rounds[state.round][state.q];$("roundLabel").textContent="Vòng "+(state.round+1);$("qLabel").textContent="Câu "+(state.q+1)+"/10";$("question").textContent=item[0];$("feedback").textContent="";$("bar").style.width=((state.q)/10*100)+"%";$("timer").textContent=remaining;
+$("answers").innerHTML=item.slice(1,5).map((a,i)=>`<button class="answer" onclick="choose(${i})">${"ABCD"[i]}. ${a}</button>`).join("");clearInterval(timer);timer=setInterval(()=>{remaining--;$("timer").textContent=remaining;if(remaining<=0){clearInterval(timer);choose(-1)}},1000)}
+function choose(i){if(answered)return;answered=true;clearInterval(timer);let item=rounds[state.round][state.q],correct=item[5];document.querySelectorAll(".answer").forEach((b,k)=>{b.disabled=true;if(k===correct)b.classList.add("selected")});let p=state.players[name]||{score:0,answered:0};p.answered++;if(i===correct)p.score+=10;p.status="Đã trả lời câu "+(state.q+1);state.players[name]=p;save();$("feedback").textContent=i===correct?"Chính xác! +10 điểm.":(i===-1?"Hết giờ! ":"Chưa chính xác. ")+"Đáp án đúng: "+item[correct+1];$("qLabel").textContent="Đã hoàn thành câu "+(state.q+1);setTimeout(()=>{state=load();if(state.q<9){state.q++;save();showQuestion()}else{state.active=false;state.players[name].status="Hoàn thành vòng "+(state.round+1);save();hideAll();$("result").classList.remove("hidden");$("score").textContent="Tổng điểm: "+state.players[name].score;$("resultText").textContent="Bạn đã trả lời "+state.players[name].answered+" câu. Chờ admin mở vòng tiếp theo."; }},1700)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+</script>
+</body></html>
